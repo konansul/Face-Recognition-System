@@ -1,10 +1,12 @@
 Real-Time Face Recognition System Algorithm
 
 1. Import necessary libraries: opencv, pytorch, numpy, ultralytics
-2. Import YOLO model
+2. Import YOLO model for face detection
 3. Check if we are able to run it on Metal Performance Shaders (MPS)
-4. Turn on camera
-5. Main Loop:
+4. Import Insightface model for creating face embeddings
+5. add_person function for adding person and embedding to database
+6. Turn on camera
+7. Main Loop:
         Process frames and predict faces
         Plot bounding boxes
-6. Close camera
+8. Close camera
