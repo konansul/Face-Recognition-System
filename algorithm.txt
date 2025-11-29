@@ -1,0 +1,10 @@
+Real-Time Face Recognition System Algorithm
+
+1. Import necessary libraries: opencv, pytorch, numpy, ultralytics
+2. Import YOLO model
+3. Check if we are able to run it on Metal Performance Shaders (MPS)
+4. Turn on camera
+5. Main Loop:
+        Process frames and predict faces
+        Plot bounding boxes
+6. Close camera
