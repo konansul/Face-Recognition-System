@@ -1,20 +1,35 @@
 Real-Time Face Recognition System Algorithm
 
-1. Import necessary libraries: opencv, pytorch, numpy, ultralytics
+1. Import necessary libraries: opencv, pytorch, numpy, ultralytics, queue, threading
+
 2. Import YOLO model for face detection
+
 3. Check if we are able to run it on Metal Performance Shaders (MPS)
+
 4. Import Insightface model for creating face embeddings
+
 5. add_person function for adding person and embedding to database
-6. recognize_face function
+
+6. assign_id_to_boxes function
+        The function matches new YOLO bounding boxes with previous-frame boxes using
+        intersection over union. Each matched box inherits its previous ID, providing
+        stable identity tracking. New IDs are automatically generated when no match
+        is found. used_previous set prevents assigning the same previous ID to multiple
+        new boxes.
+
+7. recognize_face function
         This function runs YOLO face detection, finds the matching InsightFace
         bounding box, extracts the aligned embedding via ArcFace, and compares it
         with stored embeddings in the database. If similarity exceeds threshold, the
         function returns the matched name; otherwise it returns UNKNOWN.
-7. Turn on camera
-8. Main Loop:
+
+8. Turn on camera
+
+9. Main Loop:
         Process recognize_face and return results
         for all faces in results:
             Plot bounding box
             Plot name and score
         Show the modified frame
-9. Close camera
+
+10. Close camera

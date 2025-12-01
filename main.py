@@ -6,8 +6,8 @@ import numpy as np
 from ultralytics import YOLO
 from insightface.app import FaceAnalysis
 
-THRESHOLD = 0.6
-IOU_THRESHOLD = 0.3
+THRESHOLD = 0.5
+IOU_THRESHOLD = 0.4
 
 yolo = YOLO('models/yolov12s-face.pt')
 
@@ -36,7 +36,7 @@ next_id = 0
 
 def assign_id_to_boxes(new_box, prev_box):
 
-    assigned = { }
+    assigned_ids = { }
     global next_id
     used_previous = set()
 
@@ -47,7 +47,7 @@ def assign_id_to_boxes(new_box, prev_box):
         best_prev_id = None
 
         for prev_id, (prev_x1, prev_y1, prev_x2, prev_y2) in prev_box.items():
-            if old_id in used_previous
+            if prev_id in used_previous:
                 continue
 
             intersection_x1 = max(x1, prev_x1)
@@ -68,57 +68,63 @@ def assign_id_to_boxes(new_box, prev_box):
                 best_iou = intersection_over_union
                 best_prev_id = prev_id
 
-            if best_prev_id is not None and best_iou > IOU_THRESHOLD:
-                assigned[best_prev_id] = box
-                used_previous.add(prev_id)
+        if best_prev_id is not None and best_iou > IOU_THRESHOLD:
+            assigned_ids[best_prev_id] = box
+            used_previous.add(best_prev_id)
 
-            else:
-                assigned[next_id] = box
-                next_id = next_id + 1
+        else:
+            assigned_ids[next_id] = box
+            next_id = next_id + 1
 
-    return assigned
+    return assigned_ids
 
-def recognize_face(frame):
-    yolo_results = yolo.predict(frame, verbose = False)
-    insightface_results = face_recognizer_model.get(frame)
 
-    results = [ ]
+def recognize_face():
+    global name_results
 
-    for yolo_detections in yolo_results[0].boxes:
-        x1, y1, x2, y2 = yolo_detections.xyxy[0].cpu().numpy().astype(int)
-        matched = None
+    while True:
+        frame, id_to_box = arc_queue.get()
+        insightface_results = face_recognizer_model.get(frame)
+        temp = { }
 
-        for insightface_detections in insightface_results:
-            fx1, fy1, fx2, fy2 = insightface_detections.bbox.astype(int)
+        for person_id, (x1, y1, x2, y2) in id_to_box.items():
+            matched = None
 
-            if fx1 < x2 and fx2 > x1 and fy1 < y2 and fy2 > y1:
-                matched = insightface_detections
-                break
+            for insightface_detections in insightface_results:
+                fx1, fy1, fx2, fy2 = insightface_detections.bbox.astype(int)
 
-        if matched is None:
-                results.append(('UNKNOWN', 0.0, (x1, y1, x2, y2)))
+                if fx1 < x2 and fx2 > x1 and fy1 < y2 and fy2 > y1:
+                    matched = insightface_detections
+                    break
+
+            if matched is None:
+                temp[person_id] = ('UNKNOWN', 0.0)
                 continue
 
-        embedding = matched.normed_embedding
+            embedding = matched.normed_embedding
 
-        best_name = 'UNKNOWN'
-        best_similarity = -1
-
-        for person_name, saved_embedding in database.items():
-            similarity = np.dot(embedding, saved_embedding)
-
-            if similarity >= THRESHOLD:
-                best_name = person_name
-                best_similarity = similarity
-
-        if best_similarity < THRESHOLD:
             best_name = 'UNKNOWN'
+            best_similarity = -1
 
-        results.append((best_name, best_similarity, (x1, y1, x2, y2)))
+            for person_name, saved_embedding in database.items():
+                similarity = np.dot(embedding, saved_embedding)
 
-    return results
+                if similarity >= THRESHOLD:
+                    best_name = person_name
+                    best_similarity = similarity
+
+            if best_similarity < THRESHOLD:
+                best_name = 'UNKNOWN'
+
+            temp[person_id] = (best_name, best_similarity)
+
+        name_results = temp
+
+threading.Thread(target=recognize_face, daemon=True).start()
 
 cap = cv2.VideoCapture(0)
+
+previous_boxes = { }
 
 while True:
     ret, frame = cap.read()
@@ -126,12 +132,21 @@ while True:
         break
 
     frame = cv2.flip(frame, 1)
+    yolo_detections = yolo.predict(frame, device = device, verbose = False)[0].boxes.xyxy.cpu().numpy().astype(int)
 
-    faces = recognize_face(frame)
+    id_to_box = assign_id_to_boxes(yolo_detections, previous_boxes)
+    previous_boxes = id_to_box
 
-    for name, score, (x1, y1, x2, y2) in faces:
+    if arc_queue.empty():
+        arc_queue.put((frame.copy(), id_to_box.copy()))
+
+    for person_id, (x1, y1, x2, y2) in id_to_box.items():
+
         cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
-        cv2.putText(frame, f'{name} {score:.2f}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+        if person_id in name_results:
+            name, score = name_results.get(person_id, ('UNKNOWN', 0.0))
+            cv2.putText(frame, f'{name} {score:.2f}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
     cv2.imshow('frame', frame)
 
