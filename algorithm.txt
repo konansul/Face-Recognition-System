@@ -5,6 +5,11 @@ Real-Time Face Recognition System Algorithm
 3. Check if we are able to run it on Metal Performance Shaders (MPS)
 4. Import Insightface model for creating face embeddings
 5. add_person function for adding person and embedding to database
+6. recognize_face function which will find the name of the given face
+        This function runs YOLO face detection, finds the matching InsightFace
+        bounding box, extracts the aligned embedding via ArcFace, and compares it
+        with stored embeddings in the database. If similarity exceeds threshold, the
+        function returns the matched name; otherwise it returns UNKNOWN.
 6. Turn on camera
 7. Main Loop:
         Process frames and predict faces
