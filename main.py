@@ -21,7 +21,11 @@ def add_person(person_name, image_path):
     database[person_name] = face[0].normed_embedding
     print('Added:', person_name)
 
-add_person('Kanan', 'images/kanan.jpeg')
+add_person('Kanan', 'images/kanan_sultanov.jpeg')
+add_person('Garnacho', 'images/alejandro_garnacho.jpeg')
+add_person('E.Fernandez', 'images/enzo_fernandez.jpeg')
+add_person('Caicedo', 'images/moises_caicedo.jpg')
+add_person('Cucurella', 'images/marc_cucurella.jpg')
 
 def recognize_face(frame):
     yolo_results = yolo.predict(frame, verbose = False)
