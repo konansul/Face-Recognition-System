@@ -31,13 +31,10 @@ def recognize_face(frame):
     yolo_results = yolo.predict(frame, verbose = False)
     insightface_results = face_recognizer_model.get(frame)
 
-    final_name = 'UNKNOWN'
-    final_score = 0.0
-    final_box = (0, 0, 0, 0)
+    results = [ ]
 
     for yolo_detections in yolo_results[0].boxes:
         x1, y1, x2, y2 = yolo_detections.xyxy[0].cpu().numpy().astype(int)
-
         matched = None
 
         for insightface_detections in insightface_results:
@@ -48,30 +45,27 @@ def recognize_face(frame):
                 break
 
         if matched is None:
-                name = 'UNKNOWN'
-                score = 0.0
+                results.append(('UNKNOWN', 0.0, (x1, y1, x2, y2)))
+                continue
 
-        else:
-            embedding = matched.normed_embedding
+        embedding = matched.normed_embedding
 
+        best_name = 'UNKNOWN'
+        best_similarity = -1
+
+        for person_name, saved_embedding in database.items():
+            similarity = np.dot(embedding, saved_embedding)
+
+            if similarity >= THRESHOLD:
+                best_name = person_name
+                best_similarity = similarity
+
+        if best_similarity < THRESHOLD:
             best_name = 'UNKNOWN'
-            best_similarity = -1
 
-            for person_name, saved_embedding in database.items():
-                similarity = np.dot(embedding, saved_embedding)
+        results.append((best_name, best_similarity, (x1, y1, x2, y2)))
 
-                if similarity >= THRESHOLD:
-                    best_name = person_name
-                    best_similarity = similarity
-
-                if best_similarity < THRESHOLD:
-                    best_name = 'UNKNOWN'
-
-                final_name = best_name
-                final_score = best_similarity
-                final_box = (x1, y1, x2, y2)
-
-    return final_name, final_score, *final_box
+    return results
 
 cap = cv2.VideoCapture(0)
 
@@ -82,10 +76,12 @@ while True:
 
     frame = cv2.flip(frame, 1)
 
-    name, score, x1, y1, x2, y2 = recognize_face(frame)
+    faces = recognize_face(frame)
 
-    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
-    cv2.putText(frame, f'{name} {score:.2f}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    for name, score, (x1, y1, x2, y2) in faces:
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
+        cv2.putText(frame, f'{name} {score:.2f}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
     cv2.imshow('frame', frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):

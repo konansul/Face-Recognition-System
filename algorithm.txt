@@ -10,9 +10,11 @@ Real-Time Face Recognition System Algorithm
         bounding box, extracts the aligned embedding via ArcFace, and compares it
         with stored embeddings in the database. If similarity exceeds threshold, the
         function returns the matched name; otherwise it returns UNKNOWN.
-6. Turn on camera
-7. Main Loop:
-        Process recognize_face and return output
-        Plot bounding boxe
-        Plot name and score
-8. Close camera
+7. Turn on camera
+8. Main Loop:
+        Process recognize_face and return results
+        for all faces in results:
+            Plot bounding box
+            Plot name and score
+        Show the modified frame
+9. Close camera
